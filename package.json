@@ -1,0 +1,27 @@
+{
+  "name": "continuum",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "dotenv": "^18.0.4",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
