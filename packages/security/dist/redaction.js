@@ -5,8 +5,10 @@ exports.redact = redact;
 exports.REDACTION_PATTERNS = [
     // AWS Access Key ID
     { name: 'AWS_KEY', regex: /\b(AKIA[0-9A-Z]{16})\b/g },
-    // OpenAI / Anthropic Keys
-    { name: 'API_KEY', regex: /\b(?:sk-[a-zA-Z0-9]{48}|sk-ant-api[a-zA-Z0-9\-_]{20,})\b/g },
+    // OpenAI / Anthropic / Stripe Keys
+    { name: 'API_KEY', regex: /\b(?:sk[_-][a-zA-Z0-9_]{20,48}|sk-ant-api[a-zA-Z0-9\-_]{20,})\b/g },
+    // Fly.io Tokens
+    { name: 'FLY_TOKEN', regex: /\bFlyV1_[a-zA-Z0-9_]+\b/g },
     // Generic Bearer Token
     { name: 'BEARER_TOKEN', regex: /Bearer\s+([A-Za-z0-9\-\._~\+\/]+=*)/g },
     // Private Keys (PEM)

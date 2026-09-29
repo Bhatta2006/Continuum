@@ -55,8 +55,7 @@ Matches PRD Section 8.
 - **Deliverables**: `memory-service` module.
 - **Test Criteria**: Hybrid search correctly ranks exact keyword matches and semantic matches. Conflicting facts trigger the conflict detection logic.
 
-**Milestone 4: Timeboxed Extraction Spike & Prompt Defenses (P0)**
-- **Goal**: Build the extraction engine using `@ai-sdk/core`. Use real session transcripts to extract constraints and decisions. Implement prompt-injection defenses (G-8) quarantining malicious instructions.
+- **Goal**: Build the extraction engine using the `ai` package (Vercel AI SDK) plus provider packages (e.g. `@ai-sdk/openai`). Use real session transcripts to extract constraints and decisions. Implement prompt-injection defenses (G-8) quarantining malicious instructions.
 - **Decision Gate**: Go/no-go on extraction viability.
 - **Test Criteria**: Automated eval reporting **Precision > 80%** (ensure we don't pollute memory) and **Recall > 60%** (missing a fact is better than hallucinating one) on a dataset of real transcripts + injection samples. Injection samples must be successfully quarantined.
 
