@@ -33,5 +33,6 @@ Continuum is the context layer for AI-assisted product building. It provides an 
 
 ## Architecture Overview
 - `packages/db`: Drizzle ORM schema, identity mappings, vectors, and typed models.
+- `packages/security`: Redaction pipeline, RBAC, and central agent permissions.
 
 *(Additional apps and services will be added in upcoming milestones).*

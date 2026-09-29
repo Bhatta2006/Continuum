@@ -1,0 +1,66 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.auditLogs = exports.memoryItems = exports.projects = exports.workspaceMembers = exports.toolAccounts = exports.identities = exports.workspaces = exports.memoryTypeEnum = exports.scopeEnum = exports.roleEnum = exports.customVector = void 0;
+const pg_core_1 = require("drizzle-orm/pg-core");
+exports.customVector = (0, pg_core_1.customType)({
+    dataType() { return 'vector(1536)'; },
+    toDriver(value) { return JSON.stringify(value); },
+    fromDriver(value) { return typeof value === 'string' ? JSON.parse(value) : value; },
+});
+exports.roleEnum = (0, pg_core_1.pgEnum)('role', ['owner', 'admin', 'editor', 'viewer', 'agent']);
+exports.scopeEnum = (0, pg_core_1.pgEnum)('scope', ['private', 'project', 'team', 'org']);
+exports.memoryTypeEnum = (0, pg_core_1.pgEnum)('memory_type', ['decision', 'convention', 'architecture', 'constraint', 'preference', 'task_state', 'learning', 'glossary', 'open_question', 'risk']);
+exports.workspaces = (0, pg_core_1.pgTable)('workspaces', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    name: (0, pg_core_1.text)('name').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.identities = (0, pg_core_1.pgTable)('identities', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    name: (0, pg_core_1.text)('name').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.toolAccounts = (0, pg_core_1.pgTable)('tool_accounts', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    identityId: (0, pg_core_1.uuid)('identity_id').notNull().references(() => exports.identities.id, { onDelete: 'cascade' }),
+    provider: (0, pg_core_1.text)('provider').notNull(),
+    accountId: (0, pg_core_1.text)('account_id').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.workspaceMembers = (0, pg_core_1.pgTable)('workspace_members', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    workspaceId: (0, pg_core_1.uuid)('workspace_id').notNull().references(() => exports.workspaces.id, { onDelete: 'cascade' }),
+    identityId: (0, pg_core_1.uuid)('identity_id').notNull().references(() => exports.identities.id, { onDelete: 'cascade' }),
+    role: (0, exports.roleEnum)('role').notNull().default('viewer'),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.projects = (0, pg_core_1.pgTable)('projects', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    workspaceId: (0, pg_core_1.uuid)('workspace_id').notNull().references(() => exports.workspaces.id, { onDelete: 'cascade' }),
+    name: (0, pg_core_1.text)('name').notNull(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.memoryItems = (0, pg_core_1.pgTable)('memory_items', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    projectId: (0, pg_core_1.uuid)('project_id').notNull().references(() => exports.projects.id, { onDelete: 'cascade' }),
+    type: (0, exports.memoryTypeEnum)('type').notNull(),
+    scope: (0, exports.scopeEnum)('scope').notNull().default('project'),
+    content: (0, pg_core_1.text)('content').notNull(),
+    embedding: (0, exports.customVector)('embedding'),
+    authorId: (0, pg_core_1.uuid)('author_id').references(() => exports.identities.id),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+    searchVector: (0, pg_core_1.customType)({ dataType() { return 'tsvector'; } })('search_vector')
+});
+exports.auditLogs = (0, pg_core_1.pgTable)('audit_logs', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    actorId: (0, pg_core_1.uuid)('actor_id').notNull().references(() => exports.identities.id),
+    toolAccountId: (0, pg_core_1.uuid)('tool_account_id').references(() => exports.toolAccounts.id),
+    workspaceId: (0, pg_core_1.uuid)('workspace_id').references(() => exports.workspaces.id),
+    projectId: (0, pg_core_1.uuid)('project_id').references(() => exports.projects.id),
+    scope: (0, exports.scopeEnum)('scope'),
+    action: (0, pg_core_1.text)('action').notNull(),
+    targetId: (0, pg_core_1.text)('target_id'), // can be uuid or other format
+    result: (0, pg_core_1.text)('result').notNull(), // e.g. "SUCCESS", "DENIED", "QUARANTINED"
+    details: (0, pg_core_1.text)('details'), // JSON stringified payload or redaction summary
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
