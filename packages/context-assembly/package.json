@@ -1,0 +1,21 @@
+{
+  "name": "@continuum/context-assembly",
+  "version": "1.0.0",
+  "description": "Token-budgeted context assembly for LLMs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "tiktoken": "^1.0.17",
+    "@continuum/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.1"
+  }
+}

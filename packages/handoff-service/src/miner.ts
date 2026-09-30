@@ -5,7 +5,7 @@ import { TaskStateSchema, TaskState } from './index';
 export class SessionMiner {
   async mineLog(transcriptText: string): Promise<TaskState> {
     const { object } = await generateObject({
-      model: openai('gpt-4o'),
+      model: openai('gpt-4o') as any,
       schema: TaskStateSchema,
       prompt: `You are an AI assistant tasked with mining a conversational transcript to extract the current task state.
 Analyze the provided transcript of an agent session and extract:

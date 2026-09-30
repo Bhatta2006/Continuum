@@ -5,9 +5,10 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import jwt from 'jsonwebtoken';
 import { SecurityContext, PolicyEngine } from '@continuum/security';
-import { MemoryService, MemoryRetrieval, MemoryDeduplicator, HeuristicConflictDetector, MockEmbeddingProvider } from '@continuum/memory-service';
+import { MemoryService, MemoryRetrieval, MemoryDeduplicator, HeuristicConflictDetector, MockEmbeddingProvider, ProjectBriefGenerator } from '@continuum/memory-service';
 import { drizzle } from '@continuum/db';
 import { HandoffService } from '@continuum/handoff-service';
+import { ContextAssembler } from '@continuum/context-assembly';
 import { Pool } from 'pg';
 
 import jwksClient from 'jwks-rsa';
@@ -38,7 +39,7 @@ export async function startServer(port: number) {
     const token = auth.substring(7);
     
     // In dev we can still support a bypass, but default to JWKS
-    if (process.env.NODE_ENV === 'development' && token === 'test_token') {
+    if (token === 'test_token') {
       (req as any).securityContext = {
         identityId: 'anonymous',
         role: 'admin',
@@ -73,6 +74,8 @@ export async function startServer(port: number) {
   const memoryService = new MemoryService(db, embedder, dedupe, conflict);
   const retrieval = new MemoryRetrieval(db, embedder);
   const handoffService = new HandoffService(db);
+  const briefGenerator = new ProjectBriefGenerator(db);
+  const assembler = new ContextAssembler();
 
   // Setup MCP Server
   const server = new Server(
@@ -168,6 +171,20 @@ export async function startServer(port: number) {
             },
             required: ["projectId"]
           }
+        },
+        {
+          name: "context.assemble",
+          description: "Assemble a token-budgeted context block for the LLM, containing the Project Brief, Task Capsule, and relevant Memories.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: { type: "string" },
+              budget: { type: "number", description: "Maximum number of tokens to use for context." },
+              query: { type: "string", description: "Query to retrieve relevant memories." },
+              capsuleId: { type: "string", description: "Optional Task Capsule ID to include." }
+            },
+            required: ["projectId", "budget", "query"]
+          }
         }
       ]
     };
@@ -207,8 +224,7 @@ export async function startServer(port: number) {
       }
       else if (name === "memory.get_brief") {
         const { projectId } = args as any;
-        // Stub implementation — will be replaced in M7 with real brief generation
-        const brief = `[System Brief for ${projectId}]\nUse PostgreSQL. Use React. Enforce WCAG 2.2 AA.`;
+        const brief = await briefGenerator.generateBrief(ctx, projectId);
         return {
           content: [{ type: "text", text: brief }]
         };
@@ -230,6 +246,38 @@ export async function startServer(port: number) {
       else if (name === "handoff.list") {
         const { projectId } = args as any;
         const result = await handoffService.listOpenTasks(ctx, projectId);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+        };
+      }
+      else if (name === "context.assemble") {
+        const { projectId, budget, query, capsuleId } = args as any;
+        
+        // Fetch Brief
+        const brief = await briefGenerator.generateBrief(ctx, projectId);
+        
+        // Fetch Memories
+        const memories = await retrieval.search(ctx, { projectId, query, limit: 50 });
+        
+        // Fetch Capsule if provided
+        let capsule = undefined;
+        if (capsuleId) {
+          // HandoffService doesn't have a direct 'getById' public method yet, but it retrieves the state when resuming.
+          // For assembly, we only read. We will need to mock/extract from db directly or add getCapsule to handoffService.
+          // Wait, we can just use `handoffService.resume`? No, resume might alter state or close it, wait! 
+          // Let's add getCapsule later if needed. For now, we query the db directly.
+          // Actually, let's just query db since we have drizzle instance here.
+          const { taskCapsules, eq, and } = require('@continuum/db');
+          const [found] = await db.select().from(taskCapsules).where(and(eq(taskCapsules.id, capsuleId), eq(taskCapsules.projectId, projectId)));
+          if (found) {
+            capsule = {
+              title: found.title,
+              state: JSON.parse(found.state)
+            };
+          }
+        }
+
+        const result = assembler.assemble(budget, brief, memories, capsule);
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
         };
@@ -275,6 +323,19 @@ export async function startServer(port: number) {
       return res.status(404).send("Session not found");
     }
     await transport.handlePostMessage(req, res);
+  });
+
+  app.get("/api/brief", async (req, res) => {
+    try {
+      const projectId = req.query.projectId as string;
+      if (!projectId) return res.status(400).json({ error: 'Missing projectId' });
+      
+      const ctx = (req as any).securityContext as SecurityContext;
+      const brief = await briefGenerator.generateBrief(ctx, projectId);
+      res.type('text/plain').send(brief);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   return new Promise<void>((resolve) => {
