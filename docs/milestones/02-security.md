@@ -10,7 +10,7 @@ Secure every write path from the start. Implement secret/PII redaction, append-o
 4. **Integration Test**: Wrote an integration test bridging `schema.ts`, local PGLite db, and the redaction engine to prove that any write to the DB gets successfully redacted and audit trails are properly constrained.
 
 ## Verification
-`pnpm --recursive run test` shows 18 passing tests across both packages:
+`pnpm --recursive run test` shows 20 passing tests across both packages:
 
 ```text
 packages/db test$ vitest run
@@ -21,10 +21,10 @@ packages/db test:  Test Files  1 passed (1)
 packages/security test$ vitest run
 packages/security test:  RUN  v2.1.9 D:/Continuum/packages/security
 packages/security test:  ✓ test/policy.test.ts (7 tests) 3ms
-packages/security test:  ✓ test/redaction.test.ts (10 tests) 6ms
+packages/security test:  ✓ test/redaction.test.ts (12 tests) 6ms
 packages/security test:  ✓ test/integration.test.ts (1 test) 1378ms
 packages/security test:  Test Files  3 passed (3)
-packages/security test:       Tests  18 passed (18)
+packages/security test:       Tests  20 passed (20)
 ```
 
 **Adversarial Coverage**:

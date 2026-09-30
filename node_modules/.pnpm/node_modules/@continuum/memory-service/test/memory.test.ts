@@ -98,6 +98,20 @@ describe('Memory Core & Dedupe', () => {
     expect(sqlString).toContain("<=>");
   });
 
+  it('Retrieval (Isolation): Should not leak not-found or another tenants memory', async () => {
+    const retrieval = new MemoryRetrieval(dbMock, embedder);
+    
+    // Attempting to list or get should strictly filter by project_id and tenant identity
+    // E.g. get memory
+    dbMock.execute.mockResolvedValueOnce({ rows: [] }); // Simulate DB returning empty due to RLS/filtering
+    
+    const result = await retrieval.search(ctx, { query: 'test query', projectId: 'other-tenant-proj' });
+    expect(result.length).toBe(0);
+    
+    const sql = JSON.stringify(dbMock.execute.mock.calls[dbMock.execute.mock.calls.length - 1][0]);
+    expect(sql).toContain('m.project_id ='); // project filter applied
+  });
+
   it('Supersession: Should link source and target and mark target superseded', async () => {
     await service.supersede(ctx, { sourceId: 'new-id', targetId: 'old-id', reason: 'outdated' });
     

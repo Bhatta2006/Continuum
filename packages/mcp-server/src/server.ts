@@ -106,21 +106,15 @@ export async function startServer(port: number) {
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-    // The transport adapter will inject the request object or we can extract the context from a custom mapping
-    // But since `SSEServerTransport` doesn't pass the Express `req` to the handlers easily,
-    // we need to capture the `req.securityContext` during the HTTP request and bind it to the SSE session.
-    // However, MCP handles requests per session. Let's assume a global context for now,
-    // or we'll inject it via a closure in the SSE endpoint.
-    
-    // For this implementation, we will pass a placeholder security context if not available, 
-    // but proper MCP integration often uses session metadata.
-    // To properly bind the express context, we'll store it on the transport's sessionId or use a scoped server.
-    // For simplicity in this gate, we will just use a hardcoded context that represents the verified user, 
-    // since this is a demonstration of the M5 endpoints.
-    const ctx: SecurityContext = {
-      identityId: 'verified-user',
-      role: 'admin',
-      workspaceId: 'default'
+    // Look up security context bound to this session.
+    // The SSE handshake captures the JWT-verified context from the HTTP req
+    // and stores it keyed by transport.sessionId.
+    // Fallback to a restrictive context if lookup fails (defense-in-depth).
+    const sessionId = (extra as any)?._sessionId;
+    const ctx: SecurityContext = sessionContexts.get(sessionId as string) || {
+      identityId: 'unknown',
+      role: 'viewer',
+      workspaceId: 'unknown'
     };
 
     const { name, arguments: args } = request.params;
@@ -145,7 +139,7 @@ export async function startServer(port: number) {
       }
       else if (name === "memory.get_brief") {
         const { projectId } = args as any;
-        // Stub implementation
+        // Stub implementation — will be replaced in M7 with real brief generation
         const brief = `[System Brief for ${projectId}]\nUse PostgreSQL. Use React. Enforce WCAG 2.2 AA.`;
         return {
           content: [{ type: "text", text: brief }]
@@ -162,18 +156,26 @@ export async function startServer(port: number) {
     }
   });
 
-  // Map to store active transports by session ID
+  // Maps to store active transports and their bound security contexts by session ID
   const transports = new Map<string, SSEServerTransport>();
+  const sessionContexts = new Map<string, SecurityContext>();
 
   app.get("/sse", async (req, res) => {
-    // req.securityContext is available here due to our OAuth middleware
     const transport = new SSEServerTransport("/message", res);
     await server.connect(transport);
-    // Bind context if needed here
+
+    // Capture the JWT-verified security context from the HTTP request
+    // and bind it to this SSE session for use in tool handlers.
+    const reqCtx = (req as any).securityContext as SecurityContext | undefined;
+    if (reqCtx) {
+      sessionContexts.set(transport.sessionId, reqCtx);
+    }
+
     transports.set(transport.sessionId, transport);
     
     req.on("close", () => {
       transports.delete(transport.sessionId);
+      sessionContexts.delete(transport.sessionId);
     });
   });
 
@@ -192,3 +194,4 @@ export async function startServer(port: number) {
     });
   });
 }
+

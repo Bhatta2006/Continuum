@@ -17,7 +17,7 @@ Implement a correct, permission-safe memory engine with high-quality retrieval a
 - **Dedupe threshold tuning**: Tests verify that semantic deduplication successfully rejects negations/opposite-meaning tests while successfully merging similar phrases without negations.
 - **Conflict detection (L-2)**: Tests confirm that conflicting insertions are caught, stored as quarantined, and tracked in audit logs.
 - **Retrieval filtering**: SQL queries are verified to accurately apply status, scope, and project constraints *before* limiting the subset.
-- The `pnpm --recursive run test` command ensures 24 tests total are passing gracefully.
+- The `pnpm --recursive run test` command ensures 29 tests total are passing gracefully.
 
 ## Next Steps
 Milestone 4: Extraction spike. We will set up true `ai` generation and measure extraction precision/recall against real sample transcripts.

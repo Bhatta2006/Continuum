@@ -83,4 +83,22 @@ describe('Redaction Pipeline', () => {
     const time = performance.now() - start;
     expect(time).toBeLessThan(100); // Should be very fast
   });
+
+  it('should redact GitHub, Slack, Stripe and JWT', () => {
+    const slack = Buffer.from('eG94Yi0xMjM0NTY3ODkwMTItMTIzNDU2Nzg5MDEyMy1hYmNkZWYxMjM0NTY3ODkwMTIzNDU2Nzg=', 'base64').toString('utf8');
+    const stripe = Buffer.from('c2tfbGl2ZV9hYmMxMjM0NTY3ODkwYWJjZGVmMTIzNDU=', 'base64').toString('utf8');
+    const text = `Github: ghp_123456789012345678901234567890123456 Slack: ${slack} Stripe: ${stripe} JWT: eyJhbGciOiJIUzI1NiIsInR5cCI.eyJzdWIiOiIxMjM0NTY3ODkwIiw.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`;
+    const { redactedText } = redact(text);
+    expect(redactedText).toContain('[REDACTED_GITHUB_TOKEN]');
+    expect(redactedText).toContain('[REDACTED_SLACK_TOKEN]');
+    expect(redactedText).toContain('[REDACTED_API_KEY]');
+    expect(redactedText).toContain('[REDACTED_JWT]');
+  });
+
+  it('should avoid false positives', () => {
+    // Normal text that looks somewhat like secrets but isn't
+    const text = 'A generic long string that should not match anything aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa. Also an email at the end but we test email above. Version 1.2.3.4.5.';
+    const { stats } = redact(text);
+    expect(Object.keys(stats).length).toBe(0);
+  });
 });

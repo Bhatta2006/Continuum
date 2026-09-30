@@ -1,11 +1,8 @@
 {
   "name": "continuum",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "private": true,
+  "description": "Continuum — long-term memory for AI coding agents",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
