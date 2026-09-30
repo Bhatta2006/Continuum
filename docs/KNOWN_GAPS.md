@@ -6,4 +6,8 @@ This document tracks any features, core logic, or integrations that have been in
 
 ## Current Gaps
 
-*(None yet - to be populated during execution)*
+### M3: Memory Core
+- Still pending full benchmark and eval reporting for: recall@k, precision@k, negation-pair dedupe results, and the 10K/100K item scaling benchmark.
+
+### M5: MCP Server Base
+- Deferring `memory.record_decision`, `memory.flag_stale` and `source.open` tools from the MCP server to a later milestone to prioritize `memory.search`, `memory.propose`, and `memory.get_brief` (stub).
