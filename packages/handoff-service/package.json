@@ -1,0 +1,23 @@
+{
+  "name": "@continuum/handoff-service",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.78",
+    "@continuum/db": "workspace:*",
+    "@continuum/security": "workspace:*",
+    "ai": "^3.4.33",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

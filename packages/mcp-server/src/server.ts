@@ -4,11 +4,25 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import jwt from 'jsonwebtoken';
-import { z } from 'zod';
 import { SecurityContext, PolicyEngine } from '@continuum/security';
 import { MemoryService, MemoryRetrieval, MemoryDeduplicator, HeuristicConflictDetector, MockEmbeddingProvider } from '@continuum/memory-service';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle } from '@continuum/db';
+import { HandoffService } from '@continuum/handoff-service';
 import { Pool } from 'pg';
+
+import jwksClient from 'jwks-rsa';
+
+const client = jwksClient({
+  jwksUri: process.env.JWKS_URI || 'https://auth.continuum.com/.well-known/jwks.json'
+});
+
+function getKey(header: any, callback: any) {
+  client.getSigningKey(header.kid, (err, key) => {
+    if (err) return callback(err);
+    const signingKey = key?.getPublicKey();
+    callback(null, signingKey);
+  });
+}
 
 export async function startServer(port: number) {
   const app = express();
@@ -16,18 +30,28 @@ export async function startServer(port: number) {
 
   // OAuth Middleware
   app.use((req, res, next) => {
-    // In dev, we accept a hardcoded test token if JWT secret is 'test_secret'
     const auth = req.headers.authorization;
     if (!auth || !auth.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Missing or invalid Authorization header' });
     }
 
     const token = auth.substring(7);
-    try {
-      // For local CI/dev, we use a simple synchronous JWT verification.
-      // In production, this would use jwks-rsa to verify against an IdP.
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'test_secret') as any;
-      
+    
+    // In dev we can still support a bypass, but default to JWKS
+    if (process.env.NODE_ENV === 'development' && token === 'test_token') {
+      (req as any).securityContext = {
+        identityId: 'anonymous',
+        role: 'admin',
+        workspaceId: 'default_workspace',
+      } as SecurityContext;
+      return next();
+    }
+
+    jwt.verify(token, getKey, {}, (err, decoded: any) => {
+      if (err) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+
       // Inject security context
       (req as any).securityContext = {
         identityId: decoded.sub || 'anonymous',
@@ -37,9 +61,7 @@ export async function startServer(port: number) {
       } as SecurityContext;
       
       next();
-    } catch (err) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
+    });
   });
 
   // Setup Continuum Services
@@ -50,6 +72,7 @@ export async function startServer(port: number) {
   const conflict = new HeuristicConflictDetector();
   const memoryService = new MemoryService(db, embedder, dedupe, conflict);
   const retrieval = new MemoryRetrieval(db, embedder);
+  const handoffService = new HandoffService(db);
 
   // Setup MCP Server
   const server = new Server(
@@ -100,6 +123,51 @@ export async function startServer(port: number) {
             },
             required: ["projectId"]
           }
+        },
+        {
+          name: "handoff.checkpoint",
+          description: "Save the current task state into a handoff capsule so it can be resumed by another agent.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: { type: "string" },
+              title: { type: "string", description: "Title of the task being checkpointed" },
+              state: {
+                type: "object",
+                properties: {
+                  context: { type: "string" },
+                  files: { type: "array", items: { type: "string" } },
+                  nextSteps: { type: "array", items: { type: "string" } },
+                  blockedOn: { type: "string" }
+                },
+                required: ["context", "files", "nextSteps"]
+              }
+            },
+            required: ["projectId", "title", "state"]
+          }
+        },
+        {
+          name: "handoff.resume",
+          description: "Resume a task state from a handoff capsule.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: { type: "string" },
+              capsuleId: { type: "string" }
+            },
+            required: ["projectId", "capsuleId"]
+          }
+        },
+        {
+          name: "handoff.list",
+          description: "List all open task handoff capsules for a project.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectId: { type: "string" }
+            },
+            required: ["projectId"]
+          }
         }
       ]
     };
@@ -143,6 +211,27 @@ export async function startServer(port: number) {
         const brief = `[System Brief for ${projectId}]\nUse PostgreSQL. Use React. Enforce WCAG 2.2 AA.`;
         return {
           content: [{ type: "text", text: brief }]
+        };
+      }
+      else if (name === "handoff.checkpoint") {
+        const { projectId, title, state } = args as any;
+        const result = await handoffService.checkpoint(ctx, projectId, title, state);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+        };
+      }
+      else if (name === "handoff.resume") {
+        const { projectId, capsuleId } = args as any;
+        const result = await handoffService.resume(ctx, projectId, capsuleId);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+        };
+      }
+      else if (name === "handoff.list") {
+        const { projectId } = args as any;
+        const result = await handoffService.listOpenTasks(ctx, projectId);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
         };
       }
       else {

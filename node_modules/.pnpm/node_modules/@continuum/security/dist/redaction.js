@@ -7,6 +7,12 @@ exports.REDACTION_PATTERNS = [
     { name: 'AWS_KEY', regex: /\b(AKIA[0-9A-Z]{16})\b/g },
     // OpenAI / Anthropic / Stripe Keys
     { name: 'API_KEY', regex: /\b(?:sk[_-][a-zA-Z0-9_]{20,48}|sk-ant-api[a-zA-Z0-9\-_]{20,})\b/g },
+    // GitHub Tokens
+    { name: 'GITHUB_TOKEN', regex: /\b(?:ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})\b/g },
+    // Slack Tokens
+    { name: 'SLACK_TOKEN', regex: /\b(xox[baprs]-[0-9]{12}-[0-9]{12,13}-[a-zA-Z0-9]{24})\b/g },
+    // Stripe Keys (explicit, if API_KEY doesn't cover all forms)
+    { name: 'STRIPE_KEY', regex: /\b(?:sk_live_|sk_test_|rk_live_|rk_test_)[a-zA-Z0-9]{24,99}\b/g },
     // Fly.io Tokens
     { name: 'FLY_TOKEN', regex: /\bFlyV1_[a-zA-Z0-9_]+\b/g },
     // Generic Bearer Token

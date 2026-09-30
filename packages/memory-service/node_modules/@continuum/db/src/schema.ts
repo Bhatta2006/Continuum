@@ -86,3 +86,16 @@ export const auditLogs = pgTable('audit_logs', {
   details: text('details'), // JSON stringified payload or redaction summary
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+export const taskStatusEnum = pgEnum('task_status', ['open', 'paused', 'closed']);
+
+export const taskCapsules = pgTable('task_capsules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  state: text('state').notNull(), // JSON serialized state
+  status: taskStatusEnum('status').notNull().default('open'),
+  assigneeId: uuid('assignee_id').references(() => identities.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

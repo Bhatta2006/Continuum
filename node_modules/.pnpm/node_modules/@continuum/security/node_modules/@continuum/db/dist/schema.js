@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.auditLogs = exports.memoryEdges = exports.memoryEdgesEnum = exports.memoryItems = exports.memoryStatusEnum = exports.projects = exports.workspaceMembers = exports.toolAccounts = exports.identities = exports.workspaces = exports.memoryTypeEnum = exports.scopeEnum = exports.roleEnum = exports.customVector = void 0;
+exports.taskCapsules = exports.taskStatusEnum = exports.auditLogs = exports.memoryEdges = exports.memoryEdgesEnum = exports.memoryItems = exports.memoryStatusEnum = exports.projects = exports.workspaceMembers = exports.toolAccounts = exports.identities = exports.workspaces = exports.memoryTypeEnum = exports.scopeEnum = exports.roleEnum = exports.customVector = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 exports.customVector = (0, pg_core_1.customType)({
     dataType() { return 'vector(1536)'; },
@@ -76,4 +76,15 @@ exports.auditLogs = (0, pg_core_1.pgTable)('audit_logs', {
     result: (0, pg_core_1.text)('result').notNull(), // e.g. "SUCCESS", "DENIED", "QUARANTINED"
     details: (0, pg_core_1.text)('details'), // JSON stringified payload or redaction summary
     createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+});
+exports.taskStatusEnum = (0, pg_core_1.pgEnum)('task_status', ['open', 'paused', 'closed']);
+exports.taskCapsules = (0, pg_core_1.pgTable)('task_capsules', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    projectId: (0, pg_core_1.uuid)('project_id').notNull().references(() => exports.projects.id, { onDelete: 'cascade' }),
+    title: (0, pg_core_1.text)('title').notNull(),
+    state: (0, pg_core_1.text)('state').notNull(), // JSON serialized state
+    status: (0, exports.taskStatusEnum)('status').notNull().default('open'),
+    assigneeId: (0, pg_core_1.uuid)('assignee_id').references(() => exports.identities.id),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at').defaultNow().notNull(),
 });
